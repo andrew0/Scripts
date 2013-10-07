@@ -594,7 +594,7 @@
             }
         }
 
-      function UpdateBootstrapInfo($cc, $bootstrapUrl)
+      function UpdateBootstrapInfo($cc, $bootstrapUrl, $manifest="")
         {
           $fragNum = $this->fragCount;
           $retries = 0;
@@ -608,10 +608,20 @@
             {
               $bootstrapPos = 0;
               LogDebug("Updating bootstrap info, Available fragments: " . $this->fragCount);
-              $status = $cc->get($bootstrapUrl);
-              if ($status != 200)
-                  LogError("Failed to refresh bootstrap info, Status: " . $status);
-              $bootstrapInfo = $cc->response;
+              $bootstrapInfo = "";
+              if ($manifest == "")
+                {
+                  $status = $cc->get($bootstrapUrl);
+                  if ($status != 200)
+                      LogError("Failed to refresh bootstrap info, Status: " . $status);
+                  $bootstrapInfo = $cc->response;
+                }
+                else
+                {
+                  $xml = $this->GetManifest($cc, $manifest);
+                  $bootstrap = $xml->xpath("/ns:manifest/ns:bootstrapInfo");
+                  $bootstrapInfo = base64_decode(GetString($bootstrap[0]));
+                }
               ReadBoxHeader($bootstrapInfo, $bootstrapPos, $boxType, $boxSize);
               if ($boxType == "abst")
                   $this->ParseBootstrapBox($bootstrapInfo, $bootstrapPos);
@@ -966,7 +976,7 @@
                               if ($this->WriteFragment($frag, $opt) === STOP_PROCESSING)
                                   break 2;
                               unset($frag['response']);
-                              $this->UpdateBootstrapInfo($cc, $this->bootstrapUrl);
+                              $this->UpdateBootstrapInfo($cc, $this->bootstrapUrl, $manifest);
                               $fragNum        = $this->fragCount - 1;
                               $this->lastFrag = $fragNum;
                             }
@@ -978,7 +988,7 @@
                   unset($downloads, $download);
                 }
               if ($this->live and ($fragNum >= $this->fragCount) and !$cc->active)
-                  $this->UpdateBootstrapInfo($cc, $this->bootstrapUrl);
+                  $this->UpdateBootstrapInfo($cc, $this->bootstrapUrl, $manifest);
             }
 
           LogInfo("");
